@@ -23,14 +23,18 @@ public class Ticket {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "order_id", unique = true, nullable = false)
-    private String orderId;
+    @Column(name = "pagbank_order_id", unique = true, nullable = false)
+    private String pagbankOrderId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Status status;
+    @Column(name = "payment_status", nullable = false)
+    private Status paymentStatus;
 
-    @Column(name = "totp_secret", length = 64)
+    @Column(name = "ticket_uuid", unique = true, nullable = false)
+    private UUID ticketUuid;
+
+    @Convert(converter = com.livepass.backend.config.validation.EncryptionConverter.class)
+    @Column(name = "totp_secret", length = 255) // Increased length for encrypted content
     @com.fasterxml.jackson.annotation.JsonIgnore
     private String totpSecret;
 
@@ -47,12 +51,24 @@ public class Ticket {
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
+
     @PrePersist
     protected void onCreate() {
         createdAt = OffsetDateTime.now();
-        if (status == null) {
-            status = Status.PENDING;
+        updatedAt = OffsetDateTime.now();
+        if (ticketUuid == null) {
+            ticketUuid = UUID.randomUUID();
         }
+        if (paymentStatus == null) {
+            paymentStatus = Status.PENDING;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = OffsetDateTime.now();
     }
 
     public enum Status {

@@ -41,11 +41,21 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(org.springframework.web.reactive.function.client.WebClientResponseException.class)
+    public ResponseEntity<Object> handleWebClientResponseException(org.springframework.web.reactive.function.client.WebClientResponseException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("message", "Error from external service");
+        body.put("details", ex.getResponseBodyAsString());
+        return new ResponseEntity<>(body, ex.getStatusCode());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGeneralException(Exception ex) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
-        body.put("message", "An unexpected error occurred");
+        body.put("message", ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred");
+        body.put("type", ex.getClass().getSimpleName());
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

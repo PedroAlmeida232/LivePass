@@ -32,15 +32,15 @@ class WebhookServiceTest {
     @BeforeEach
     void setUp() {
         ticket = Ticket.builder()
-                .orderId("ORD-123")
-                .status(Ticket.Status.PENDING)
+                .pagbankOrderId("ORD-123")
+                .paymentStatus(Ticket.Status.PENDING)
                 .build();
     }
 
     @Test
     void processPayment_alreadyPaid_doesNotModifyTicket() {
-        ticket.setStatus(Ticket.Status.PAID);
-        when(ticketRepository.findByOrderId("ORD-123")).thenReturn(Optional.of(ticket));
+        ticket.setPaymentStatus(Ticket.Status.PAID);
+        when(ticketRepository.findByPagbankOrderId("ORD-123")).thenReturn(Optional.of(ticket));
 
         webhookService.processPayment(Map.of("id", "ORD-123", "status", "PAID"));
 
@@ -50,23 +50,23 @@ class WebhookServiceTest {
 
     @Test
     void processPayment_pendingTicket_updatesStatusToPaidAndGeneratesSecret() {
-        when(ticketRepository.findByOrderId("ORD-123")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByPagbankOrderId("ORD-123")).thenReturn(Optional.of(ticket));
         when(totpService.generateSecret()).thenReturn("NEW-SECRET");
 
         webhookService.processPayment(Map.of("id", "ORD-123", "status", "PAID"));
 
-        assertEquals(Ticket.Status.PAID, ticket.getStatus());
+        assertEquals(Ticket.Status.PAID, ticket.getPaymentStatus());
         assertEquals("NEW-SECRET", ticket.getTotpSecret());
         verify(ticketRepository, times(1)).save(ticket);
     }
 
     @Test
     void processPayment_statusCancelled_updatesStatusToCancelled() {
-        when(ticketRepository.findByOrderId("ORD-123")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByPagbankOrderId("ORD-123")).thenReturn(Optional.of(ticket));
 
         webhookService.processPayment(Map.of("id", "ORD-123", "status", "CANCELLED"));
 
-        assertEquals(Ticket.Status.CANCELLED, ticket.getStatus());
+        assertEquals(Ticket.Status.CANCELLED, ticket.getPaymentStatus());
         verify(ticketRepository, times(1)).save(ticket);
         verify(totpService, never()).generateSecret();
     }

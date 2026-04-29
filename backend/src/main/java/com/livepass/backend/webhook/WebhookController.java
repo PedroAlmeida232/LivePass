@@ -17,6 +17,17 @@ public class WebhookController {
     private final HmacValidator hmacValidator;
     private final ObjectMapper objectMapper;
 
+    @PostMapping("/mercadopago")
+    public ResponseEntity<Void> handleMercadoPagoWebhook(
+            @RequestBody String rawPayload
+    ) throws JsonProcessingException {
+        // For Mercado Pago, we process and fetch payment details by ID
+        // which is inherently safe as it requires our Access Token.
+        Map<String, Object> payload = objectMapper.readValue(rawPayload, Map.class);
+        webhookService.processMercadoPagoWebhook(payload);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/pagbank")
     public ResponseEntity<Void> handlePagBankWebhook(
             @RequestHeader(value = "X-PagBank-Signature", required = false) String signature,
@@ -29,8 +40,7 @@ public class WebhookController {
 
         // HMAC validation (using the raw string)
         if (!hmacValidator.validate(rawPayload, signature)) {
-            // return ResponseEntity.status(401).build(); 
-            // Commented for sandbox testing if keys don't match exactly yet
+             return ResponseEntity.status(401).build(); 
         }
 
         Map<String, Object> payload = objectMapper.readValue(rawPayload, Map.class);

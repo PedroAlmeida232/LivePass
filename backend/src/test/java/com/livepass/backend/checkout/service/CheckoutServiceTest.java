@@ -48,7 +48,7 @@ class CheckoutServiceTest {
                         "QR-1",
                         "copy-paste-code",
                         OffsetDateTime.now().plusMinutes(30).toString(),
-                        List.of(new PagBankService.Link("qr_code", "http://qrcode.link", "image/png", "GET"))
+                        List.of(new PagBankService.Link("qr_code", "http://qrcode.link", "image/png", "GET", "GET"))
                 )),
                 "WAITING"
         );
@@ -56,7 +56,7 @@ class CheckoutServiceTest {
 
     @Test
     void createPixCharge_success_returnsPixResponseAndSavesTicket() {
-        when(pagBankService.createPixOrder(anyString(), anyString())).thenReturn(Mono.just(pagBankResponse));
+        when(pagBankService.createPixOrder(any(), any(), any(), any())).thenReturn(Mono.just(pagBankResponse));
         
         PixResponse response = checkoutService.createPixCharge(user);
 
@@ -70,7 +70,7 @@ class CheckoutServiceTest {
 
     @Test
     void createPixCharge_pagBankError_throwsException() {
-        when(pagBankService.createPixOrder(anyString(), anyString())).thenReturn(Mono.empty());
+        when(pagBankService.createPixOrder(any(), any(), any(), any())).thenReturn(Mono.empty());
 
         assertThrows(RuntimeException.class, () -> checkoutService.createPixCharge(user));
         verify(ticketRepository, never()).save(any());
@@ -79,11 +79,11 @@ class CheckoutServiceTest {
     @Test
     void getOrderStatus_existingTicket_returnsStatus() {
         Ticket ticket = Ticket.builder()
-                .orderId("OR-123")
-                .status(Ticket.Status.PAID)
+                .pagbankOrderId("OR-123")
+                .paymentStatus(Ticket.Status.PAID)
                 .build();
         
-        when(ticketRepository.findByOrderId("OR-123")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByPagbankOrderId("OR-123")).thenReturn(Optional.of(ticket));
 
         OrderStatusResponse response = checkoutService.getOrderStatus("OR-123");
 
@@ -93,7 +93,7 @@ class CheckoutServiceTest {
 
     @Test
     void getOrderStatus_nonExistingTicket_throwsException() {
-        when(ticketRepository.findByOrderId(anyString())).thenReturn(Optional.empty());
+        when(ticketRepository.findByPagbankOrderId(anyString())).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> checkoutService.getOrderStatus("INVALID"));
     }

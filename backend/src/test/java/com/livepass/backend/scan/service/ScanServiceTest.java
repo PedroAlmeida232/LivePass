@@ -41,7 +41,7 @@ class ScanServiceTest {
         ticketId = UUID.randomUUID();
         ticket = Ticket.builder()
                 .id(ticketId)
-                .status(Ticket.Status.PAID)
+                .paymentStatus(Ticket.Status.PAID)
                 .totpSecret("SECRET123")
                 .used(false)
                 .build();
@@ -93,7 +93,7 @@ class ScanServiceTest {
 
     @Test
     void validateTicket_notPaid_returnsInvalidResponse() {
-        ticket.setStatus(Ticket.Status.PENDING);
+        ticket.setPaymentStatus(Ticket.Status.PENDING);
         ScanRequest request = new ScanRequest(ticketId, "123456");
         when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
 

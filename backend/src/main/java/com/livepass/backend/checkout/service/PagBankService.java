@@ -1,12 +1,15 @@
 package com.livepass.backend.checkout.service;
 
-import com.livepass.backend.checkout.dto.PixResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -16,30 +19,35 @@ public class PagBankService {
 
     private final WebClient pagBankWebClient;
 
-    public Mono<PagBankOrderResponse> createPixOrder(String referenceId, String customerEmail) {
-        // Simple implementation for Sprint 2 - building the payload manually for brevity
+    public Mono<PagBankOrderResponse> createPixOrder(String referenceId, String customerEmail, String customerCpf, String customerName) {
+        String expirationDate = OffsetDateTime.now()
+                .plusMinutes(30)
+                .truncatedTo(ChronoUnit.SECONDS)
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+
+        Map<String, Object> customer = new HashMap<>();
+        customer.put("name", customerName);
+        customer.put("email", customerEmail);
+        customer.put("tax_id", customerCpf != null ? customerCpf : "00000000000");
+        customer.put("phones", List.of(Map.of(
+                "country", "55",
+                "area", "11",
+                "number", "999999999",
+                "type", "MOBILE"
+        )));
+
         Map<String, Object> payload = Map.of(
                 "reference_id", referenceId,
-                "customer", Map.of(
-                        "name", "Customer Name",
-                        "email", customerEmail,
-                        "tax_id", "12345678909",
-                        "phones", List.of(Map.of(
-                                "country", "55",
-                                "area", "11",
-                                "number", "999999999",
-                                "type", "MOBILE"
-                        ))
-                ),
+                "customer", customer,
                 "items", List.of(Map.of(
                         "reference_id", "ticket_001",
                         "name", "LivePass Ticket",
                         "quantity", 1,
-                        "unit_amount", 100 // Value in cents (R$ 1,00)
+                        "unit_amount", 100
                 )),
                 "qr_codes", List.of(Map.of(
                         "amount", Map.of("value", 100),
-                        "expiration_date", OffsetDateTime.now().plusMinutes(30).toString()
+                        "expiration_date", expirationDate
                 ))
         );
 
@@ -47,7 +55,11 @@ public class PagBankService {
                 .uri("/orders")
                 .bodyValue(payload)
                 .retrieve()
-                .bodyToMono(PagBankOrderResponse.class);
+                .bodyToMono(PagBankOrderResponse.class)
+                .onErrorResume(WebClientResponseException.class, ex -> {
+                    System.err.println("PagBank API Error: " + ex.getResponseBodyAsString());
+                    return Mono.error(ex);
+                });
     }
 
     public Mono<PagBankStatusResponse> getOrderStatus(String orderId) {
@@ -76,7 +88,8 @@ public class PagBankService {
             String rel,
             String href,
             String media,
-            String type
+            String type,
+            String method
     ) {}
 
     public record PagBankStatusResponse(

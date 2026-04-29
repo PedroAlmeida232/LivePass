@@ -10,6 +10,7 @@ import java.util.UUID;
 
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket, UUID> {
-    Optional<Ticket> findByOrderId(String orderId);
+    Optional<Ticket> findByPagbankOrderId(String pagbankOrderId);
+    Optional<Ticket> findByTicketUuid(java.util.UUID ticketUuid);
     List<Ticket> findByUserEmail(String email);
 }

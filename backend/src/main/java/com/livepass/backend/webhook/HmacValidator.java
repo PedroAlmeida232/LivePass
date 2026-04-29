@@ -8,7 +8,6 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 
 @Component
 public class HmacValidator {
@@ -26,9 +25,14 @@ public class HmacValidator {
             sha256Hmac.init(secretKeySpec);
             
             byte[] hashBytes = sha256Hmac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
-            String calculatedSignature = Base64.getEncoder().encodeToString(hashBytes);
             
-            return calculatedSignature.equals(signature);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            String calculatedSignature = sb.toString();
+            
+            return calculatedSignature.equalsIgnoreCase(signature);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             return false;
         }

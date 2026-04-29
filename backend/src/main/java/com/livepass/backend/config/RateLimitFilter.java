@@ -37,8 +37,10 @@ public class RateLimitFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-        // Apply rate limit only to login endpoint for this MVP
-        if (httpRequest.getRequestURI().endsWith("/api/auth/login")) {
+        String uri = httpRequest.getRequestURI();
+        
+        // Apply rate limit to critical endpoints
+        if (uri.endsWith("/api/auth/login") || uri.endsWith("/api/scan/validate")) {
             String clientIp = getClientIP(httpRequest);
             Bucket bucket = buckets.computeIfAbsent(clientIp, k -> createNewBucket());
 
@@ -46,7 +48,8 @@ public class RateLimitFilter implements Filter {
                 chain.doFilter(request, response);
             } else {
                 httpResponse.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-                httpResponse.getWriter().write("Too many requests. Please try again later.");
+                httpResponse.setContentType("application/json");
+                httpResponse.getWriter().write("{\"message\": \"Too many requests. Please try again later.\"}");
             }
         } else {
             chain.doFilter(request, response);

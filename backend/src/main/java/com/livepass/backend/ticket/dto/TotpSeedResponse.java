@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TotpSeedResponse {
+    private String secret;
     private String totpUri;
-    private String qrCodeBase64;
 }

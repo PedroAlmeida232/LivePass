@@ -6,7 +6,6 @@ import com.livepass.backend.repository.TicketRepository;
 import com.livepass.backend.ticket.dto.TicketResponse;
 import com.livepass.backend.ticket.dto.TotpSeedResponse;
 import com.livepass.backend.ticket.service.TotpService;
-import dev.samstevens.totp.exceptions.QrGenerationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -31,9 +30,9 @@ public class TicketController {
         List<TicketResponse> tickets = ticketRepository.findByUserEmail(user.getEmail())
                 .stream()
                 .map(t -> TicketResponse.builder()
-                        .id(t.getId())
-                        .orderId(t.getOrderId())
-                        .status(t.getStatus())
+                        .id(t.getTicketUuid())
+                        .orderId(t.getPagbankOrderId())
+                        .status(t.getPaymentStatus())
                         .isUsed(t.isUsed())
                         .createdAt(t.getCreatedAt())
                         .build())
@@ -42,28 +41,32 @@ public class TicketController {
         return ResponseEntity.ok(tickets);
     }
 
-    @GetMapping("/{id}/totp-seed")
+    @GetMapping("/{ticketUuid}/totp-seed")
     public ResponseEntity<TotpSeedResponse> getTotpSeed(
             @AuthenticationPrincipal User user,
-            @PathVariable UUID id
-    ) throws QrGenerationException {
-        Ticket ticket = ticketRepository.findById(id)
+            @PathVariable UUID ticketUuid
+    ) {
+        Ticket ticket = ticketRepository.findByTicketUuid(ticketUuid)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
 
-        if (!ticket.getUser().getEmail().equals(user.getEmail())) {
+        // Only owner or STAFF can see the seed
+        boolean isOwner = ticket.getUser().getEmail().equals(user.getEmail());
+        boolean isStaff = user.getRole() == User.Role.STAFF;
+
+        if (!isOwner && !isStaff) {
             return ResponseEntity.status(403).build();
         }
 
-        if (ticket.getStatus() != Ticket.Status.PAID) {
-            return ResponseEntity.status(400).build();
+        if (ticket.getPaymentStatus() != Ticket.Status.PAID) {
+            return ResponseEntity.status(400).body(null);
         }
 
         String secret = ticket.getTotpSecret();
-        String accountName = user.getEmail();
+        String accountName = ticket.getUser().getEmail();
 
         return ResponseEntity.ok(TotpSeedResponse.builder()
+                .secret(secret)
                 .totpUri(totpService.getTotpUri(secret, accountName))
-                .qrCodeBase64(totpService.getQrCodeBase64(secret, accountName))
                 .build());
     }
 }

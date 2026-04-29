@@ -28,13 +28,18 @@ public class AuthService {
 
         var user = User.builder()
                 .email(request.getEmail())
+                .fullName(request.getFullName())
+                .cpf(request.getCpf())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole() != null ? request.getRole() : User.Role.CUSTOMER)
                 .build();
 
         userRepository.save(user);
 
-        var jwtToken = jwtService.generateToken(user);
+        java.util.Map<String, Object> extraClaims = new java.util.HashMap<>();
+        extraClaims.put("role", user.getRole().name());
+
+        var jwtToken = jwtService.generateToken(extraClaims, user);
         return AuthResponse.builder()
                 .token(jwtToken)
                 .email(user.getEmail())
@@ -53,11 +58,21 @@ public class AuthService {
         var user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(); // Should not happen if authenticated
 
-        var jwtToken = jwtService.generateToken(user);
+        java.util.Map<String, Object> extraClaims = new java.util.HashMap<>();
+        extraClaims.put("role", user.getRole().name());
+
+        var jwtToken = jwtService.generateToken(extraClaims, user);
         return AuthResponse.builder()
                 .token(jwtToken)
                 .email(user.getEmail())
                 .role(user.getRole())
                 .build();
+    }
+
+    public void promoteToStaff(String email) {
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setRole(User.Role.STAFF);
+        userRepository.save(user);
     }
 }

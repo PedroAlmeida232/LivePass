@@ -16,48 +16,53 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CheckoutService {
 
-    private final PagBankService pagBankService;
+    private final MercadoPagoService mercadoPagoService;
     private final TicketRepository ticketRepository;
 
     @Transactional
     public PixResponse createPixCharge(User user) {
-        String referenceId = UUID.randomUUID().toString();
-        
-        var pagBankResponse = pagBankService.createPixOrder(referenceId, user.getEmail()).block();
+        try {
+            String[] nameParts = user.getFullName().split(" ", 2);
+            String firstName = nameParts[0];
+            String lastName = nameParts.length > 1 ? nameParts[1] : "";
 
-        if (pagBankResponse == null || pagBankResponse.qr_codes().isEmpty()) {
-            throw new RuntimeException("Failed to create PIX charge with PagBank");
+            var payment = mercadoPagoService.createPixPayment(
+                    user.getEmail(),
+                    firstName,
+                    lastName,
+                    user.getCpf(),
+                    new java.math.BigDecimal("1.00") // Valor fixo para MVP
+            );
+
+            Ticket ticket = Ticket.builder()
+                    .user(user)
+                    .pagbankOrderId(payment.getId().toString()) // Reusing the field for MP ID
+                    .paymentStatus(Ticket.Status.PENDING)
+                    .build();
+
+            ticketRepository.save(ticket);
+
+            var pointOfInteraction = payment.getPointOfInteraction();
+            var transactionData = pointOfInteraction.getTransactionData();
+
+            return PixResponse.builder()
+                    .orderId(payment.getId().toString())
+                    .qrCode(transactionData.getQrCodeBase64())
+                    .copyPaste(transactionData.getQrCode())
+                    .expiresAt(OffsetDateTime.now().plusMinutes(30))
+                    .build();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create PIX charge with Mercado Pago: " + e.getMessage(), e);
         }
-
-        var qrCodeData = pagBankResponse.qr_codes().get(0);
-        
-        Ticket ticket = Ticket.builder()
-                .user(user)
-                .orderId(pagBankResponse.id())
-                .status(Ticket.Status.PENDING)
-                .build();
-
-        ticketRepository.save(ticket);
-
-        return PixResponse.builder()
-                .orderId(pagBankResponse.id())
-                .qrCode(qrCodeData.links().stream()
-                        .filter(l -> l.rel().equals("qr_code"))
-                        .findFirst()
-                        .map(PagBankService.Link::href)
-                        .orElse(""))
-                .copyPaste(qrCodeData.text())
-                .expiresAt(OffsetDateTime.parse(qrCodeData.expiration_date()))
-                .build();
     }
 
     public OrderStatusResponse getOrderStatus(String orderId) {
-        Ticket ticket = ticketRepository.findByOrderId(orderId)
+        Ticket ticket = ticketRepository.findByPagbankOrderId(orderId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
 
         return OrderStatusResponse.builder()
                 .orderId(orderId)
-                .status(ticket.getStatus())
+                .status(ticket.getPaymentStatus())
                 .build();
     }
 }

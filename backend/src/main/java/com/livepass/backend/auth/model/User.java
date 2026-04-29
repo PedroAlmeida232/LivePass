@@ -26,7 +26,13 @@ public class User implements UserDetails {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false)
+    @Column(name = "full_name", nullable = false)
+    private String fullName;
+
+    @Column(unique = true, nullable = true, length = 11)
+    private String cpf;
+
+    @Column(name = "password_hash", nullable = false)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
 
@@ -37,12 +43,21 @@ public class User implements UserDetails {
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
+
     @PrePersist
     protected void onCreate() {
         createdAt = OffsetDateTime.now();
+        updatedAt = OffsetDateTime.now();
         if (role == null) {
             role = Role.CUSTOMER;
         }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = OffsetDateTime.now();
     }
 
     @Override

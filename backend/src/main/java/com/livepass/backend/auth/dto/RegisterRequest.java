@@ -19,6 +19,13 @@ public class RegisterRequest {
     @Email(message = "Email should be valid")
     private String email;
 
+    @NotBlank(message = "Full name is required")
+    private String fullName;
+
+    @com.livepass.backend.config.validation.CPF(message = "Invalid CPF format")
+    @NotBlank(message = "CPF is required")
+    private String cpf;
+
     @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;

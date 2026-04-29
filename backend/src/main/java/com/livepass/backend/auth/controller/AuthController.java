@@ -28,9 +28,15 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
-            @Valid @RequestBody LoginRequest request
+            @RequestBody LoginRequest request
     ) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/promote/{email}")
+    public ResponseEntity<Void> promoteToStaff(@PathVariable String email) {
+        authService.promoteToStaff(email);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/me")
